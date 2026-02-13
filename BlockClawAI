@@ -1,0 +1,1451 @@
+// ============================================================================
+// COLLABORATIVE RESEARCH LAYER - Github for Truth
+// Extends the Truth Blockchain with collaborative research workflows
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// RESEARCH PROJECT STRUCTURES
+// ----------------------------------------------------------------------------
+
+struct ResearchProject {
+    id: UUID
+    name: String
+    description: String
+    created: DateTime
+    
+    // Project metadata
+    domain: ResearchDomain          // Physics, Medicine, Climate Science, etc.
+    status: ProjectStatus
+    visibility: Visibility          // Public, Private, Consortium
+    
+    // Team structure
+    team: ResearchTeam {
+        lead_researchers: List<Researcher>
+        contributors: List<Researcher>
+        reviewers: List<Researcher>
+        observers: List<Researcher>  // Can view but not edit
+        invited: List<Researcher>    // Pending invitations
+    }
+    
+    // Research organization (like Git branches)
+    main_branch: BranchID           // Accepted/published findings
+    working_branches: List<Branch>  // Active research threads
+    
+    // Hypotheses and questions
+    research_questions: List<ResearchQuestion>
+    hypotheses: List<Hypothesis>
+    
+    // Data and findings
+    datasets: List<Dataset>
+    experiments: List<Experiment>
+    observations: List<Observation>
+    findings: List<Finding>
+    
+    // Integration with truth blockchain
+    published_claims: List<ClaimID>  // Claims submitted to main blockchain
+    draft_claims: List<DraftClaim>   // Work in progress
+    
+    // Collaboration features
+    discussions: List<Discussion>
+    peer_reviews: List<PeerReview>
+    version_history: List<Snapshot>
+    
+    // Provenance and attribution
+    citations: List<Citation>
+    data_sources: List<DataSource>
+    funding: List<FundingSource>
+    
+    // Conflict tracking within project
+    internal_conflicts: List<InternalConflict>
+    consensus_state: ConsensusState
+}
+
+enum ProjectStatus {
+    PLANNING,              // Designing study
+    DATA_COLLECTION,       // Gathering data
+    ANALYSIS,              // Analyzing results
+    PEER_REVIEW,          // Internal or external review
+    REVISION,             // Addressing feedback
+    READY_TO_PUBLISH,     // Ready for blockchain submission
+    PUBLISHED,            // Claims on main blockchain
+    ONGOING,              // Long-term monitoring project
+    COMPLETED,
+    ABANDONED
+}
+
+enum Visibility {
+    PUBLIC,               // Anyone can view
+    CONSORTIUM,           // Limited to research consortium members
+    PRIVATE,              // Only team members
+    EMBARGOED            // Public after date
+}
+
+struct Branch {
+    id: UUID
+    name: String
+    description: String
+    created_by: Researcher
+    created: DateTime
+    
+    // Branch genealogy (like Git)
+    parent_branch: BranchID
+    forked_from_commit: CommitID
+    merged_to_main: Boolean
+    merge_commit: CommitID
+    
+    // What's being explored in this branch
+    focus: String                    // "Testing hypothesis 3", "Alternative analysis"
+    experimental: Boolean            // Is this speculative?
+    
+    // Content
+    claims: List<DraftClaim>
+    data: List<DataVersion>
+    analysis_scripts: List<Code>
+    findings: List<Finding>
+    
+    // Collaboration
+    active_researchers: List<Researcher>
+    status: BranchStatus
+}
+
+enum BranchStatus {
+    ACTIVE,               // Ongoing work
+    STALLED,             // No recent activity
+    READY_FOR_REVIEW,    // Ready to merge
+    UNDER_REVIEW,        // Being reviewed
+    MERGED,              // Merged to main
+    ARCHIVED,            // Preserved but inactive
+    DISCARDED            // Approach abandoned
+}
+
+struct ResearchQuestion {
+    id: UUID
+    question: String
+    background: String
+    importance: String
+    
+    // Current state
+    status: QuestionStatus
+    confidence_in_answer: Float [0.0-1.0]
+    
+    // Investigation
+    related_hypotheses: List<HypothesisID>
+    evidence_for: List<EvidenceID>
+    evidence_against: List<EvidenceID>
+    
+    // Collaboration
+    primary_investigators: List<Researcher>
+    open_for_collaboration: Boolean
+    
+    // Outcomes
+    current_answer: String           // Best current understanding
+    certainty_tier: CertaintyTier   // From main blockchain structure
+}
+
+enum QuestionStatus {
+    OPEN,                 // Actively investigating
+    PARTIALLY_ANSWERED,   // Some progress
+    ANSWERED,            // Satisfactory answer reached
+    UNANSWERABLE,        // Determined to be unanswerable
+    REFINED,             // Question reformulated
+    SUPERSEDED          // Better question formulated
+}
+
+struct Hypothesis {
+    id: UUID
+    statement: String
+    formulated_by: Researcher
+    formulated: DateTime
+    
+    // Classification
+    type: HypothesisType
+    scope: String
+    
+    // Testing
+    status: HypothesisStatus
+    tests_designed: List<Experiment>
+    tests_completed: List<Experiment>
+    
+    // Results
+    evidence_for: List<Evidence>
+    evidence_against: List<Evidence>
+    statistical_support: StatisticalSummary
+    
+    // Relationships
+    supports: List<HypothesisID>      // Other hypotheses this supports
+    conflicts_with: List<HypothesisID>
+    derived_from: List<HypothesisID>  // Parent hypotheses
+    
+    // Evolution tracking
+    original_formulation: String
+    refinements: List<Refinement>
+    
+    // If proven/disproven
+    conclusion: HypothesisConclusion
+    promoted_to_claim: ClaimID       // If published to blockchain
+}
+
+enum HypothesisType {
+    NULL_HYPOTHESIS,      // Default assumption to disprove
+    ALTERNATIVE,          // Alternative to null
+    MECHANISTIC,         // Explains how something works
+    PREDICTIVE,          // Predicts future observations
+    CORRELATIONAL,       // Proposes correlation
+    CAUSAL              // Proposes causation
+}
+
+enum HypothesisStatus {
+    FORMULATED,          // Just proposed
+    UNDER_TESTING,       // Experiments running
+    SUPPORTED,           // Evidence supports it
+    WEAKLY_SUPPORTED,    // Some support, not conclusive
+    UNSUPPORTED,         // Evidence doesn't support
+    REFUTED,            // Strong evidence against
+    INCONCLUSIVE,       // Can't determine
+    REVISED             // Modified based on evidence
+}
+
+struct Experiment {
+    id: UUID
+    title: String
+    description: String
+    designed_by: List<Researcher>
+    conducted_by: List<Researcher>
+    
+    // Purpose
+    tests_hypotheses: List<HypothesisID>
+    research_questions: List<QuestionID>
+    
+    // Design
+    methodology: Methodology {
+        approach: String             // RCT, observational, computational, etc.
+        sample_size: Integer
+        controls: List<Control>
+        variables: List<Variable>
+        procedure: String
+        analysis_plan: String        // Pre-registered analysis
+    }
+    
+    // Pre-registration (critical for credibility)
+    preregistered: Boolean
+    preregistration: PreRegistration
+    
+    // Execution
+    status: ExperimentStatus
+    started: DateTime
+    completed: DateTime
+    
+    // Data
+    raw_data: DatasetID
+    processed_data: DatasetID
+    analysis_code: List<CodeID>
+    
+    // Results
+    results: ExperimentResults
+    statistical_analysis: StatisticalAnalysis
+    
+    // Quality control
+    peer_reviewed: Boolean
+    reviews: List<PeerReview>
+    replication_attempts: List<ReplicationAttempt>
+    
+    // Issues and limitations
+    deviations_from_protocol: List<Deviation>
+    limitations: List<String>
+    potential_biases: List<Bias>
+}
+
+enum ExperimentStatus {
+    DESIGNED,            // Protocol ready
+    APPROVED,            // Passed review (if needed)
+    IN_PROGRESS,         // Data collection ongoing
+    DATA_COLLECTED,      // Collection complete
+    ANALYZING,           // Analysis in progress
+    COMPLETED,
+    FAILED,              // Could not complete
+    INVALIDATED         // Results deemed invalid
+}
+
+struct PreRegistration {
+    registered_at: DateTime
+    registry: String             // OSF, ClinicalTrials.gov, etc.
+    registration_id: String
+    
+    // What was pre-specified
+    hypotheses: List<String>
+    sample_size_justification: String
+    planned_analysis: String
+    stopping_rules: String
+    
+    // Deviations tracking
+    deviations: List<Deviation>
+    deviations_justified: Boolean
+    justification: String
+}
+
+struct Dataset {
+    id: UUID
+    name: String
+    description: String
+    
+    // Provenance
+    collected_by: List<Researcher>
+    collection_method: String
+    collection_period: TimeRange
+    location: Location
+    
+    // Data itself (versioned)
+    versions: List<DataVersion>
+    current_version: VersionID
+    
+    // Format and access
+    format: DataFormat            // CSV, HDF5, NetCDF, etc.
+    schema: Schema               // Data structure definition
+    storage_location: StorageRef  // IPFS, S3, institutional repo, etc.
+    access_level: AccessLevel
+    
+    // Quality
+    quality_score: Float [0.0-1.0]
+    quality_checks: List<QualityCheck>
+    known_issues: List<DataIssue>
+    
+    // Metadata
+    variables: List<Variable>
+    sample_size: Integer
+    units: Map<String, Unit>
+    
+    // Usage tracking
+    used_in_experiments: List<ExperimentID>
+    used_in_analyses: List<AnalysisID>
+    citations: List<Citation>
+    
+    // Collaboration
+    shared_with: List<ProjectID>  // Other projects using this data
+    derived_datasets: List<DatasetID>
+    
+    // Licensing
+    license: License
+    embargo_until: DateTime
+}
+
+struct DataVersion {
+    version: String              // Semantic versioning: v1.0.0
+    created: DateTime
+    created_by: Researcher
+    
+    // Changes from previous version
+    changelog: String
+    diff_summary: DiffSummary
+    
+    // Data location
+    data_hash: Hash              // Content-addressable
+    storage_ref: StorageRef
+    
+    // Processing applied
+    processing_steps: List<ProcessingStep>
+    processing_code: CodeID
+    
+    // Validation
+    validated: Boolean
+    validation_results: ValidationResults
+}
+
+struct Finding {
+    id: UUID
+    title: String
+    description: String
+    discovered_by: List<Researcher>
+    discovered: DateTime
+    
+    // What was found
+    finding_type: FindingType
+    statement: String
+    
+    // Supporting evidence
+    based_on_experiments: List<ExperimentID>
+    based_on_data: List<DatasetID>
+    based_on_analyses: List<AnalysisID>
+    statistical_support: StatisticalSummary
+    
+    // Significance
+    novelty: NoveltyLevel
+    impact: ImpactAssessment
+    reproducibility: ReproducibilityScore
+    
+    // Relationships
+    supports_hypotheses: List<HypothesisID>
+    refutes_hypotheses: List<HypothesisID>
+    relates_to_findings: List<FindingID>
+    
+    // Status
+    confidence: Float [0.0-1.0]
+    status: FindingStatus
+    
+    // Evolution to publication
+    draft_claim: DraftClaim       // Preparing for blockchain
+    published_claim: ClaimID      // On main blockchain
+    
+    // Peer assessment
+    internal_reviews: List<Review>
+    external_reviews: List<Review>
+}
+
+enum FindingType {
+    CORRELATION_DISCOVERED,
+    CAUSAL_RELATIONSHIP,
+    MECHANISM_IDENTIFIED,
+    PREDICTION_CONFIRMED,
+    PREDICTION_REFUTED,
+    ANOMALY_DETECTED,
+    PATTERN_IDENTIFIED,
+    THRESHOLD_DETERMINED,
+    PARAMETER_MEASURED,
+    HYPOTHESIS_SUPPORTED,
+    HYPOTHESIS_REFUTED,
+    UNEXPECTED_RESULT
+}
+
+enum FindingStatus {
+    PRELIMINARY,         // Initial observation
+    VALIDATED,          // Checked and confirmed
+    PEER_REVIEWED,      // Reviewed by team
+    REPLICATED,         // Independently confirmed
+    CONTESTED,          // Questions raised
+    READY_TO_PUBLISH,   // Ready for blockchain
+    PUBLISHED,          // On main blockchain
+    SUPERSEDED         // Better finding replaced this
+}
+
+// ----------------------------------------------------------------------------
+// COLLABORATIVE WORKFLOWS (Git-like operations)
+// ----------------------------------------------------------------------------
+
+function createBranch(project: ProjectID, branch_name: String, 
+                     researcher: Researcher, purpose: String) -> BranchID {
+    // Create new research branch (like git branch)
+    project = getProject(project)
+    
+    // Check permissions
+    if (!canCreateBranch(researcher, project)) {
+        return Error("Insufficient permissions")
+    }
+    
+    branch = Branch {
+        id: generateUUID(),
+        name: branch_name,
+        description: purpose,
+        created_by: researcher,
+        created: now(),
+        parent_branch: project.main_branch,
+        forked_from_commit: getCurrentCommit(project.main_branch),
+        merged_to_main: false,
+        focus: purpose,
+        experimental: true,
+        claims: [],
+        data: copyCurrentData(project.main_branch),  // Start with main's data
+        active_researchers: [researcher],
+        status: ACTIVE
+    }
+    
+    project.working_branches.append(branch)
+    
+    // Notify team
+    notifyTeam(project, "New research branch created: " + branch_name)
+    
+    return branch.id
+}
+
+function commitFindings(branch: BranchID, findings: List<Finding>, 
+                       researcher: Researcher, message: String) -> CommitID {
+    // Commit findings to branch (like git commit)
+    branch = getBranch(branch)
+    
+    commit = Commit {
+        id: generateUUID(),
+        branch: branch.id,
+        timestamp: now(),
+        author: researcher,
+        message: message,
+        
+        // What changed
+        findings_added: findings,
+        data_modified: getModifiedData(branch),
+        claims_updated: getUpdatedClaims(branch),
+        
+        // Snapshot
+        snapshot: createSnapshot(branch),
+        
+        // Lineage
+        parent_commit: branch.latest_commit,
+        
+        // Verification
+        validated: false,
+        reviewers: []
+    }
+    
+    branch.commits.append(commit)
+    branch.latest_commit = commit.id
+    
+    // Update branch status
+    if (allFindingsValidated(branch.findings)) {
+        branch.status = READY_FOR_REVIEW
+    }
+    
+    return commit.id
+}
+
+function createPullRequest(source_branch: BranchID, target_branch: BranchID,
+                          researcher: Researcher, 
+                          title: String, description: String) -> PullRequestID {
+    // Request to merge findings into main branch (like GitHub PR)
+    
+    source = getBranch(source_branch)
+    target = getBranch(target_branch)
+    
+    // Analyze differences
+    diff = compareBranches(source, target)
+    
+    pr = PullRequest {
+        id: generateUUID(),
+        title: title,
+        description: description,
+        created_by: researcher,
+        created: now(),
+        
+        source_branch: source_branch,
+        target_branch: target_branch,
+        
+        // Changes proposed
+        diff: diff,
+        new_findings: diff.findings_added,
+        modified_claims: diff.claims_modified,
+        new_data: diff.data_added,
+        
+        // Review process
+        status: PR_OPEN,
+        reviewers: assignReviewers(source.project, diff),
+        reviews: [],
+        requested_changes: [],
+        
+        // Automated checks
+        checks: runAutomatedChecks(source, target),
+        checks_passing: false,
+        
+        // Discussion
+        discussion: Discussion {
+            comments: [],
+            resolved_threads: [],
+            open_threads: []
+        },
+        
+        // Conflict detection
+        conflicts: detectConflicts(source, target),
+        conflicts_resolved: false,
+        
+        // Approval tracking
+        approvals_required: 2,  // Configurable per project
+        approvals: [],
+        ready_to_merge: false
+    }
+    
+    // Notify reviewers
+    for reviewer in pr.reviewers {
+        notifyReviewer(reviewer, pr)
+    }
+    
+    return pr.id
+}
+
+function reviewPullRequest(pr_id: PullRequestID, reviewer: Researcher,
+                          review: Review) -> Result {
+    pr = getPullRequest(pr_id)
+    
+    // Check reviewer is authorized
+    if (reviewer not in pr.reviewers && !isMaintainer(reviewer, pr.project)) {
+        return Error("Not authorized to review")
+    }
+    
+    review_record = ReviewRecord {
+        reviewer: reviewer,
+        timestamp: now(),
+        decision: review.decision,  // APPROVE, REQUEST_CHANGES, COMMENT
+        comments: review.comments,
+        
+        // Detailed feedback
+        methodology_assessment: review.methodology_assessment,
+        statistical_assessment: review.statistical_assessment,
+        data_quality_check: review.data_quality_check,
+        reproducibility_check: review.reproducibility_check,
+        
+        // Specific issues
+        issues_found: review.issues,
+        suggestions: review.suggestions,
+        
+        // Confidence in findings
+        confidence_rating: review.confidence_rating
+    }
+    
+    pr.reviews.append(review_record)
+    
+    // Update PR status based on review
+    if (review.decision == APPROVE) {
+        pr.approvals.append(reviewer)
+        
+        if (pr.approvals.length >= pr.approvals_required && 
+            pr.checks_passing && 
+            pr.conflicts_resolved) {
+            pr.ready_to_merge = true
+            pr.status = PR_APPROVED
+            notifyAuthor(pr, "Pull request approved and ready to merge")
+        }
+    }
+    else if (review.decision == REQUEST_CHANGES) {
+        pr.status = PR_CHANGES_REQUESTED
+        pr.requested_changes.append(review.issues)
+        notifyAuthor(pr, "Changes requested on your pull request")
+    }
+    
+    return Success()
+}
+
+function mergePullRequest(pr_id: PullRequestID, merger: Researcher) -> Result {
+    // Merge research findings into main branch
+    pr = getPullRequest(pr_id)
+    
+    // Final checks
+    if (!pr.ready_to_merge) {
+        return Error("Pull request not ready to merge")
+    }
+    
+    if (!canMerge(merger, pr.project)) {
+        return Error("Insufficient permissions to merge")
+    }
+    
+    source = getBranch(pr.source_branch)
+    target = getBranch(pr.target_branch)
+    
+    // Perform merge
+    merge_commit = MergeCommit {
+        id: generateUUID(),
+        timestamp: now(),
+        merger: merger,
+        message: "Merge: " + pr.title,
+        
+        source_branch: pr.source_branch,
+        target_branch: pr.target_branch,
+        source_commit: source.latest_commit,
+        target_commit: target.latest_commit,
+        
+        // What was merged
+        findings_merged: pr.new_findings,
+        data_merged: pr.new_data,
+        claims_updated: pr.modified_claims,
+        
+        // Review provenance
+        reviews: pr.reviews,
+        approvals: pr.approvals,
+        
+        // Conflict resolutions
+        conflict_resolutions: pr.conflict_resolutions
+    }
+    
+    // Apply changes to target branch
+    for finding in pr.new_findings {
+        target.findings.append(finding)
+        
+        // If finding is ready, promote to draft claim
+        if (finding.status == READY_TO_PUBLISH) {
+            draft_claim = promoteToDraftClaim(finding)
+            target.draft_claims.append(draft_claim)
+        }
+    }
+    
+    // Update source branch
+    source.merged_to_main = true
+    source.merge_commit = merge_commit.id
+    source.status = MERGED
+    
+    // Update PR
+    pr.status = PR_MERGED
+    pr.merged_at = now()
+    pr.merged_by = merger
+    pr.merge_commit = merge_commit.id
+    
+    // Notify team
+    notifyTeam(pr.project, "Research findings merged: " + pr.title)
+    
+    // Attribution tracking
+    recordContributions(pr, merge_commit)
+    
+    return Success(merge_commit.id)
+}
+
+// ----------------------------------------------------------------------------
+// COLLABORATIVE DATA SHARING
+// ----------------------------------------------------------------------------
+
+function shareDataset(dataset: DatasetID, target_projects: List<ProjectID>,
+                     permissions: DataPermissions) -> Result {
+    // Share data with other research groups (controlled sharing)
+    
+    dataset = getDataset(dataset)
+    source_project = dataset.project
+    
+    for target_project_id in target_projects {
+        target_project = getProject(target_project_id)
+        
+        // Create data sharing agreement
+        sharing = DataSharing {
+            id: generateUUID(),
+            dataset: dataset.id,
+            source_project: source_project.id,
+            target_project: target_project_id,
+            created: now(),
+            
+            // Access control
+            permissions: permissions,  // READ, WRITE, DERIVE, CITE
+            expires: permissions.expiration_date,
+            
+            // Terms
+            terms: SharingTerms {
+                attribution_required: true,
+                publication_approval: permissions.publication_approval,
+                derivative_works_allowed: permissions.allow_derivatives,
+                commercial_use: false,
+                data_retention: permissions.retention_policy
+            },
+            
+            // Tracking
+            accessed_count: 0,
+            last_accessed: null,
+            derived_datasets: [],
+            
+            // Provenance
+            shared_by: getCurrentUser(),
+            reason: permissions.sharing_reason
+        }
+        
+        // Add to target project
+        target_project.shared_datasets.append(sharing)
+        
+        // Track on source
+        dataset.shared_with.append(sharing.id)
+        
+        // Notify target team
+        notifyTeam(target_project, 
+                  "Dataset shared with your project: " + dataset.name)
+        
+        // Log sharing event
+        logSharingEvent(sharing)
+    }
+    
+    return Success()
+}
+
+function createDerivedDataset(source_dataset: DatasetID, 
+                             transformation: Transformation,
+                             researcher: Researcher) -> DatasetID {
+    // Create new dataset from existing one (with full provenance)
+    
+    source = getDataset(source_dataset)
+    
+    // Check permissions
+    if (!canDerive(researcher, source)) {
+        return Error("No permission to create derivatives")
+    }
+    
+    derived = Dataset {
+        id: generateUUID(),
+        name: transformation.output_name,
+        description: "Derived from: " + source.name,
+        
+        // Provenance chain
+        derived_from: [source.id],
+        transformation_applied: transformation,
+        
+        // Processing record
+        processing_steps: [
+            ProcessingStep {
+                timestamp: now(),
+                processor: researcher,
+                operation: transformation.operation,
+                parameters: transformation.parameters,
+                code: transformation.code_ref,
+                code_hash: hash(transformation.code_ref)
+            }
+        ],
+        
+        // Data
+        versions: [
+            DataVersion {
+                version: "1.0.0",
+                created: now(),
+                created_by: researcher,
+                changelog: "Initial derived dataset",
+                processing_code: transformation.code_ref
+            }
+        ],
+        
+        // Quality inherited from source
+        quality_score: source.quality_score * 0.95,  // Slight penalty for derivation
+        
+        // Licensing
+        license: inheritLicense(source.license),
+        
+        // Attribution
+        citations: [
+            Citation {
+                type: DATA_DERIVATION,
+                source: source.id,
+                original_creators: source.collected_by
+            }
+        ]
+    }
+    
+    // Link back to source
+    source.derived_datasets.append(derived.id)
+    
+    // Track transformation
+    logTransformation(source, derived, transformation)
+    
+    return derived.id
+}
+
+// ----------------------------------------------------------------------------
+// CONSENSUS BUILDING WITHIN PROJECTS
+// ----------------------------------------------------------------------------
+
+function proposeConsensus(project: ProjectID, topic: String,
+                         positions: List<Position>) -> ConsensusProposalID {
+    // Initiate consensus building process (like Delphi method)
+    
+    project = getProject(project)
+    
+    proposal = ConsensusProposal {
+        id: generateUUID(),
+        project: project.id,
+        topic: topic,
+        created: now(),
+        
+        // What we're trying to agree on
+        question: topic,
+        possible_positions: positions,
+        
+        // Process
+        round: 1,
+        max_rounds: 3,
+        
+        // Participation
+        participants: project.team.all_members,
+        responses: [],
+        
+        // Current state
+        current_positions: initializePositions(positions, participants),
+        convergence_metric: 0.0,
+        consensus_reached: false,
+        
+        // Results
+        final_consensus: null,
+        dissenting_opinions: [],
+        confidence_in_consensus: 0.0
+    }
+    
+    // Notify team
+    for member in project.team.all_members {
+        notifyMember(member, "Consensus proposal: " + topic)
+    }
+    
+    return proposal.id
+}
+
+function recordConsensusResponse(proposal_id: ConsensusProposalID,
+                                researcher: Researcher,
+                                response: ConsensusResponse) -> Result {
+    proposal = getConsensusProposal(proposal_id)
+    
+    // Record response
+    response_record = {
+        researcher: researcher,
+        round: proposal.round,
+        timestamp: now(),
+        
+        // Their position
+        chosen_position: response.position,
+        confidence: response.confidence,
+        reasoning: response.reasoning,
+        
+        // Conditions/caveats
+        caveats: response.caveats,
+        
+        // After seeing others' views (in later rounds)
+        changed_position: proposal.round > 1 && 
+                         response.position != getPreviousPosition(researcher, proposal),
+        change_reasoning: response.change_reasoning
+    }
+    
+    proposal.responses.append(response_record)
+    
+    // Check if round complete
+    if (allParticipantsResponded(proposal)) {
+        // Analyze responses
+        analysis = analyzeConsensus(proposal)
+        
+        proposal.convergence_metric = analysis.convergence
+        
+        if (analysis.convergence > 0.8 || proposal.round >= proposal.max_rounds) {
+            // Consensus reached or max rounds hit
+            proposal.consensus_reached = analysis.convergence > 0.8
+            proposal.final_consensus = analysis.majority_position
+            proposal.dissenting_opinions = analysis.dissents
+            proposal.confidence_in_consensus = analysis.confidence
+            
+            // Create finding from consensus
+            if (proposal.consensus_reached) {
+                finding = createConsensusFiniding(proposal)
+                addFindingToProject(proposal.project, finding)
+            }
+        }
+        else {
+            // Start next round with summary of current positions
+            startNextRound(proposal, analysis)
+        }
+    }
+    
+    return Success()
+}
+
+// ----------------------------------------------------------------------------
+// PUBLICATION TO MAIN BLOCKCHAIN
+// ----------------------------------------------------------------------------
+
+function promoteToBlockchain(project: ProjectID, finding: FindingID,
+                            submitter: Researcher) -> Result {
+    // Promote vetted finding to main truth blockchain
+    
+    project = getProject(project)
+    finding = getFinding(finding)
+    
+    // Rigorous checks before blockchain submission
+    checks = PrePublicationChecks {
+        // Data quality
+        data_validated: allDataValidated(finding.based_on_data),
+        data_quality_score: getMinDataQuality(finding.based_on_data),
+        
+        // Statistical rigor
+        statistical_tests_appropriate: true,  // Manual verification
+        p_values_valid: checkPValues(finding.statistical_support),
+        effect_sizes_reported: hasEffectSizes(finding.statistical_support),
+        confidence_intervals: hasConfidenceIntervals(finding.statistical_support),
+        
+        // Reproducibility
+        methods_documented: finding.methods_fully_documented,
+        data_available: allDataAccessible(finding.based_on_data),
+        code_available: allCodeAccessible(finding.analysis_code),
+        
+        // Peer review
+        internal_reviews_positive: countApprovals(finding.internal_reviews) >= 2,
+        external_reviews_obtained: finding.external_reviews.length > 0,
+        
+        // Conflicts addressed
+        conflicts_resolved: allConflictsResolved(finding),
+        
+        // Replication
+        replicated: finding.reproducibility.replicated,
+        replication_count: finding.reproducibility.replication_count
+    }
+    
+    if (!allChecksPassed(checks)) {
+        return Error("Finding not ready for blockchain publication", checks)
+    }
+    
+    // Convert finding to blockchain claim
+    claim = Claim {
+        id: generateUUID(),
+        content: finding.statement,
+        
+        // Determine appropriate claim type and certainty
+        claim_type: determineClaimType(finding),
+        certainty_tier: determineCertaintyTier(finding, checks),
+        
+        // Context from research
+        context: Context {
+            reference_frame: extractReferenceFrame(finding),
+            temporal_scope: extractTemporalScope(finding),
+            spatial_scope: extractSpatialScope(finding),
+            domain_constraints: extractConstraints(finding),
+            operational_definition: extractDefinitions(finding)
+        },
+        
+        // Verification from research project
+        verification: Verification {
+            method: summarizeMethodology(finding.based_on_experiments),
+            verifiers: [project.team.lead_researchers],
+            verification_count: finding.based_on_experiments.length,
+            replication_status: finding.reproducibility.status,
+            last_verification_date: now()
+        },
+        
+        // Dependencies
+        depends_on: extractDependencies(finding),
+        
+        // Evidence chain
+        evidence: compileEvidence(finding),
+        
+        // Research provenance
+        research_project: project.id,
+        original_finding: finding.id,
+        
+        // Team attribution
+        creators: finding.discovered_by,
+        contributors: getAllContributors(finding),
+        
+        // Peer review record
+        peer_reviewed: true,
+        peer_reviews: combineReviews(finding.internal_reviews, 
+                                    finding.external_reviews),
+        
+        // Initial confidence
+        confidence_score: computeConfidence(claim),
+        
+        status: ACTIVE
+    }
+    
+    // Submit to blockchain
+    result = submitClaim(claim, project.lead_organization)
+    
+    if (result.success) {
+        // Link back to finding
+        finding.published_claim = claim.id
+        finding.status = PUBLISHED
+        
+        // Record in project
+        project.published_claims.append(claim.id)
+        
+        // Attribution and credit
+        recordPublicationCredit(project, finding, claim)
+        
+        // Notify team
+        notifyTeam(project, "Finding published to blockchain: " + finding.title)
+    }
+    
+    return result
+}
+
+// ----------------------------------------------------------------------------
+// CROSS-PROJECT DISCOVERY AND COLLABORATION
+// ----------------------------------------------------------------------------
+
+function discoverRelatedProjects(project: ProjectID) -> List<ProjectMatch> {
+    // Find other projects working on related questions (like GitHub Explore)
+    
+    project = getProject(project)
+    matches = []
+    
+    // Search by research domain
+    domain_matches = searchProjectsByDomain(project.domain)
+    
+    // Search by similar questions
+    for question in project.research_questions {
+        similar = findSimilarQuestions(question)
+        matches.append(similar)
+    }
+    
+    // Search by shared datasets
+    for dataset in project.datasets {
+        projects_using_data = findProjectsUsingDataset(dataset)
+        matches.append(projects_using_data)
+    }
+    
+    // Search by conflicting findings
+    for claim in project.draft_claims {
+        potential_conflicts = detectPotentialConflicts(claim)
+        for conflict in potential_conflicts {
+            conflicting_project = conflict.project
+            matches.append({
+                project: conflicting_project,
+                reason: "Potential conflicting findings",
+                conflict: conflict
+            })
+        }
+    }
+    
+    // Search by complementary expertise
+    complementary = findComplementaryExpertise(project.team)
+    matches.append(complementary)
+    
+    // Rank matches
+    ranked_matches = rankMatches(matches, project)
+    
+    return ranked_matches
+}
+
+function proposeCollaboration(source_project: ProjectID, 
+                             target_project: ProjectID,
+                             collaboration_type: CollaborationType,
+                             proposal: String) -> CollaborationID {
+    // Propose collaboration between projects
+    
+    collaboration = Collaboration {
+        id: generateUUID(),
+        source_project: source_project,
+        target_project: target_project,
+        proposed: now(),
+        proposed_by: getCurrentUser(),
+        
+        type: collaboration_type,  // DATA_SHARING, JOINT_ANALYSIS, REPLICATION, etc.
+        proposal: proposal,
+        
+        status: COLLABORATION_PROPOSED,
+        
+        // Terms
+        terms: CollaborationTerms {
+            data_sharing_agreement: null,
+            authorship_agreement: null,
+            resource_sharing: null,
+            timeline: null
+        },
+        
+        // Progress
+        accepted: false,
+        active: false,
+        joint_findings: [],
+        shared_resources: []
+    }
+    
+    // Notify target project
+    notifyProject(target_project, 
+                 "Collaboration proposed: " + collaboration_type)
+    
+    return collaboration.id
+}
+
+enum CollaborationType {
+    DATA_SHARING,         // Share datasets
+    JOINT_ANALYSIS,       // Analyze combined data
+    REPLICATION,          // Replicate findings
+    META_ANALYSIS,        // Combine multiple studies
+    METHODOLOGY_SHARING,  // Share techniques
+    CONFLICT_RESOLUTION,  // Resolve conflicting findings
+    COMPLEMENTARY_STUDY,  // Study complementary aspects
+    RESOURCE_POOLING     // Combine resources/equipment
+}
+
+// ----------------------------------------------------------------------------
+// AUTOMATED QUALITY CHECKS
+// ----------------------------------------------------------------------------
+
+function runAutomatedChecks(branch: Branch) -> CheckResults {
+    // Run automated checks on research (like CI/CD)
+    
+    results = CheckResults {
+        timestamp: now(),
+        overall_passing: false,
+        checks: []
+    }
+    
+    // Data quality checks
+    results.checks.append(
+        checkDataQuality(branch.data)
+    )
+    
+    // Statistical checks
+    for finding in branch.findings {
+        if (finding.statistical_support) {
+            results.checks.append(
+                checkStatisticalValidity(finding.statistical_support)
+            )
+        }
+    }
+    
+    // Reproducibility checks
+    for experiment in branch.experiments {
+        results.checks.append(
+            checkReproducibility(experiment)
+        )
+    }
+    
+    // Code quality (for computational research)
+    for code in branch.analysis_scripts {
+        results.checks.append(
+            checkCodeQuality(code)
+        )
+    }
+    
+    // Documentation completeness
+    results.checks.append(
+        checkDocumentation(branch)
+    )
+    
+    // Citation checks
+    results.checks.append(
+        checkCitations(branch)
+    )
+    
+    // Conflict detection
+    results.checks.append(
+        checkForConflicts(branch)
+    )
+    
+    // Ethics compliance (for human/animal research)
+    if (requiresEthicsReview(branch)) {
+        results.checks.append(
+            checkEthicsCompliance(branch)
+        )
+    }
+    
+    results.overall_passing = allChecksPassing(results.checks)
+    
+    return results
+}
+
+function checkStatisticalValidity(stats: StatisticalSummary) -> Check {
+    // Validate statistical analysis
+    
+    issues = []
+    warnings = []
+    
+    // Check p-value issues
+    if (stats.p_value_exists) {
+        if (stats.p_value > 0.05 && stats.p_value < 0.06) {
+            warnings.append("P-value suspiciously close to threshold (p=" + 
+                          stats.p_value + ")")
+        }
+        
+        if (stats.p_value < 0.001) {
+            warnings.append("Consider reporting exact p-value, not just p<0.001")
+        }
+    }
+    
+    // Check effect sizes
+    if (!stats.effect_size_reported) {
+        issues.append("Effect size not reported - required for significance assessment")
+    }
+    
+    // Check confidence intervals
+    if (!stats.confidence_intervals) {
+        warnings.append("Confidence intervals not reported - recommended")
+    }
+    
+    // Check sample size
+    if (stats.sample_size < stats.minimum_sample_size) {
+        issues.append("Sample size (" + stats.sample_size + 
+                     ") below minimum required (" + stats.minimum_sample_size + ")")
+    }
+    
+    // Check for p-hacking indicators
+    if (detectPHacking(stats)) {
+        warnings.append("Possible p-hacking detected - review analysis carefully")
+    }
+    
+    // Check multiple comparisons correction
+    if (stats.multiple_comparisons && !stats.correction_applied) {
+        issues.append("Multiple comparisons without correction - increases false positive rate")
+    }
+    
+    return Check {
+        name: "Statistical Validity",
+        passing: issues.length == 0,
+        issues: issues,
+        warnings: warnings
+    }
+}
+
+function checkReproducibility(experiment: Experiment) -> Check {
+    // Check if experiment is reproducible
+    
+    issues = []
+    score = 0.0
+    
+    // Data availability
+    if (experiment.raw_data && isAccessible(experiment.raw_data)) {
+        score += 0.3
+    } else {
+        issues.append("Raw data not available or not accessible")
+    }
+    
+    // Code availability
+    if (experiment.analysis_code && allCodeAccessible(experiment.analysis_code)) {
+        score += 0.3
+    } else {
+        issues.append("Analysis code not available or not accessible")
+    }
+    
+    // Methodology documentation
+    if (experiment.methodology.procedure.length > 100) {  // Detailed description
+        score += 0.2
+    } else {
+        issues.append("Methodology insufficiently documented")
+    }
+    
+    // Pre-registration
+    if (experiment.preregistered) {
+        score += 0.2
+    } else {
+        issues.append("Experiment was not pre-registered")
+    }
+    
+    return Check {
+        name: "Reproducibility",
+        passing: score > 0.7,
+        score: score,
+        issues: issues,
+        message: "Reproducibility score: " + (score * 100) + "%"
+    }
+}
+
+// ----------------------------------------------------------------------------
+// EXAMPLE USAGE SCENARIOS
+// ----------------------------------------------------------------------------
+
+// SCENARIO 1: Starting a new research project
+function exampleNewProject() {
+    // Create project
+    project = createProject({
+        name: "Long-term Effects of Microplastics on Marine Ecosystems",
+        domain: ENVIRONMENTAL_SCIENCE,
+        visibility: PUBLIC,
+        lead_researchers: [dr_smith, dr_jones],
+        description: "5-year study investigating microplastic accumulation..."
+    })
+    
+    // Define research questions
+    addResearchQuestion(project, {
+        question: "Do microplastics accumulate in marine food chains?",
+        importance: "Critical for understanding ecosystem health",
+        status: OPEN
+    })
+    
+    // Formulate hypotheses
+    addHypothesis(project, {
+        statement: "Microplastic concentration increases with trophic level",
+        type: PREDICTIVE,
+        status: FORMULATED
+    })
+    
+    // Set up data collection
+    registerExperiment(project, {
+        title: "Multi-site sampling of marine organisms",
+        methodology: {
+            approach: "Longitudinal sampling",
+            sample_size: 1000,
+            procedure: "Collect samples from 5 sites quarterly..."
+        },
+        preregistered: true
+    })
+}
+
+// SCENARIO 2: Collaborative data analysis across projects
+function exampleCollaboration() {
+    // Project A has microplastic data from Atlantic
+    project_a = getProject("atlantic-microplastics")
+    
+    // Project B has data from Pacific
+    project_b = getProject("pacific-microplastics")
+    
+    // They discover each other
+    matches = discoverRelatedProjects(project_a.id)
+    // Returns project_b with "Similar research domain" match
+    
+    // Project A proposes collaboration
+    collaboration = proposeCollaboration(
+        project_a.id,
+        project_b.id,
+        JOINT_ANALYSIS,
+        "Our datasets could provide unprecedented cross-ocean comparison"
+    )
+    
+    // Project B accepts
+    acceptCollaboration(collaboration.id)
+    
+    // Share datasets
+    shareDataset(
+        project_a.main_dataset,
+        [project_b.id],
+        permissions: {
+            READ: true,
+            DERIVE: true,
+            CITE: true,
+            publication_approval: true
+        }
+    )
+    
+    // Create joint analysis branch
+    joint_branch = createBranch(
+        project_a.id,
+        "atlantic-pacific-comparison",
+        dr_smith,
+        "Compare microplastic patterns across oceans"
+    )
+    
+    // Both teams contribute analyses
+    commitFindings(joint_branch, combined_analysis, dr_smith, 
+                  "Initial comparison shows similar patterns")
+    
+    // Review and merge
+    pr = createPullRequest(joint_branch, project_a.main_branch,
+                          dr_smith, 
+                          "Cross-ocean microplastic analysis",
+                          "Findings show consistent accumulation patterns")
+    
+    // After peer review, publish to blockchain
+    mergePullRequest(pr.id, dr_smith)
+    finding = getFinding("cross-ocean-finding")
+    promoteToBlockchain(project_a.id, finding.id, dr_smith)
+}
+
+// SCENARIO 3: Conflict detection and resolution
+function exampleConflictResolution() {
+    // Project A finds: "Microplastics decrease at depth"
+    finding_a = Finding {
+        statement: "Microplastic concentration decreases below 200m depth",
+        based_on_data: [atlantic_depth_samples],
+        confidence: 0.85
+    }
+    
+    // Project B finds opposite: "Microplastics increase at depth"
+    finding_b = Finding {
+        statement: "Microplastic concentration increases with depth",
+        based_on_data: [pacific_depth_samples],
+        confidence: 0.80
+    }
+    
+    // When promoting to blockchain, conflict detected
+    conflict = detectConflict(finding_a, finding_b)
+    // Returns: MEASUREMENT_DISCREPANCY
+    
+    // Automated analysis suggests possible explanations
+    explanations = [
+        "Different ocean basins have different circulation patterns",
+        "Atlantic has stronger surface currents that keep plastics near surface",
+        "Pacific has deeper currents that transport plastics downward",
+        "Seasonal variation - sampled at different times",
+        "Different plastic types measured"
+    ]
+    
+    // Teams collaborate to resolve
+    resolution_project = createProject({
+        name: "Resolving depth-distribution discrepancy",
+        collaborators: [project_a, project_b]
+    })
+    
+    // Design follow-up study with standardized methodology
+    unified_experiment = designExperiment({
+        sites: [atlantic_site, pacific_site],
+        standardized_protocol: true,
+        same_time_period: true,
+        same_plastic_types: true
+    })
+    
+    // Results show: both were right in their contexts
+    resolution = ConflictResolution {
+        resolution_type: BOTH_PARTIAL,
+        explanation: "Context resolved: Atlantic shows surface concentration due to gyre dynamics, Pacific shows depth concentration due to thermohaline circulation. Both findings accurate for their respective ocean basins.",
+        supporting_evidence: [unified_experiment_results]
+    }
+    
+    // Update both claims on blockchain
+    claim_a.context.spatial_scope = "Atlantic Ocean only"
+    claim_b.context.spatial_scope = "Pacific Ocean only"
+    claim_a.conflicts_with[0].resolution_status = CONTEXT_RESOLVED
+    claim_b.conflicts_with[0].resolution_status = CONTEXT_RESOLVED
+}
