@@ -1,0 +1,865 @@
+// ============================================================================
+// BLOCKCLAW: Blockchain-Augmented Learning Architecture
+// A distributed truth substrate that serves as both:
+// 1. Training data (verified, certainty-graded dataset)
+// 2. Compute infrastructure (distributed verification = distributed compute)
+// 3. Reference system (live fact-checking during inference)
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// CORE BLOCKCLAW ARCHITECTURE
+// ----------------------------------------------------------------------------
+
+struct BlockClaw {
+    // The foundational blockchain
+    truth_chain: TruthBlockchain
+    
+    // AI Training Integration
+    training_substrate: TrainingSubstrate {
+        // Curated datasets at different certainty levels
+        axiom_layer: Dataset              // Certainty = 1.0 (logic, math)
+        empirical_certain_layer: Dataset  // Certainty = 0.95+ (physics, chemistry)
+        high_confidence_layer: Dataset    // Certainty = 0.8-0.95 (well-studied)
+        probable_layer: Dataset           // Certainty = 0.6-0.8 (emerging science)
+        contested_layer: Dataset          // Certainty = 0.4-0.6 (debated)
+        
+        // Training modes
+        full_spectrum_training: Boolean   // Train on all certainty levels
+        certainty_aware_training: Boolean // Teach model about uncertainty
+        adversarial_training: Boolean     // Train on conflicting claims
+    }
+    
+    // Distributed Compute Layer
+    compute_network: ComputeNetwork {
+        // Every validator contributes compute
+        validator_nodes: List<ValidatorNode>
+        
+        // Compute tasks
+        proof_verification: ComputePool    // Verify mathematical proofs
+        statistical_validation: ComputePool // Validate statistical claims
+        replication_checking: ComputePool   // Check if experiments replicate
+        conflict_resolution: ComputePool    // Resolve contradictions
+        
+        // AI-specific compute
+        training_clusters: List<TrainingCluster>
+        inference_nodes: List<InferenceNode>
+        fine_tuning_pool: FineTuningPool
+    }
+    
+    // Live Reference System
+    inference_integration: InferenceIntegration {
+        // AI can query BlockClaw during inference
+        live_fact_checking: FactCheckingService
+        uncertainty_quantification: UncertaintyService
+        source_attribution: AttributionService
+        
+        // Constrained generation
+        claim_validator: ClaimValidator   // Validate AI outputs
+        hallucination_detector: HallucinationDetector
+    }
+    
+    // Meta-Learning Layer
+    meta_learning: MetaLearningSystem {
+        // Learn which types of claims are reliable
+        source_reliability_model: ReliabilityModel
+        domain_difficulty_model: DifficultyModel
+        
+        // Learn optimal training strategies
+        curriculum_learner: CurriculumLearner
+        
+        // Learn from AI mistakes
+        error_analysis: ErrorAnalyzer
+    }
+}
+
+// ----------------------------------------------------------------------------
+// TRAINING SUBSTRATE: BlockClaw as Training Data
+// ----------------------------------------------------------------------------
+
+struct TrainingSubstrate {
+    // Generate training data from blockchain
+    
+    function export_training_dataset(
+        certainty_threshold: Float,
+        domains: List<Domain>,
+        format: DataFormat
+    ) -> TrainingDataset {
+        
+        dataset = TrainingDataset {
+            examples: [],
+            metadata: {
+                certainty_distribution: {},
+                domain_coverage: {},
+                conflict_examples: [],
+                provenance: "BlockClaw v1.0"
+            }
+        }
+        
+        // Extract claims above certainty threshold
+        claims = truth_chain.get_all_claims()
+                    .filter(c => c.confidence_score >= certainty_threshold)
+                    .filter(c => c.context.domain in domains)
+        
+        for claim in claims {
+            // Convert to training examples
+            
+            // 1. Question-Answer pairs
+            qa_examples = generate_qa_pairs(claim)
+            dataset.examples += qa_examples
+            
+            // 2. Fact verification examples
+            verification_examples = [
+                {
+                    "claim": claim.content,
+                    "label": "TRUE",
+                    "confidence": claim.confidence_score,
+                    "evidence": summarize_evidence(claim.evidence),
+                    "certainty_tier": claim.certainty_tier
+                }
+            ]
+            dataset.examples += verification_examples
+            
+            // 3. Chain-of-thought reasoning examples
+            reasoning_examples = generate_reasoning_chain(claim)
+            dataset.examples += reasoning_examples
+            
+            // 4. Context-aware examples
+            context_examples = [
+                {
+                    "claim": claim.content,
+                    "context": claim.context,
+                    "valid_in_context": true,
+                    "invalid_contexts": generate_invalid_contexts(claim)
+                }
+            ]
+            dataset.examples += context_examples
+        }
+        
+        // Add conflict examples (crucial for learning nuance)
+        conflicts = truth_chain.get_all_conflicts()
+        for conflict in conflicts {
+            claim_a = get_claim(conflict.claim_a_id)
+            claim_b = get_claim(conflict.claim_b_id)
+            
+            conflict_example = {
+                "claim_a": claim_a.content,
+                "claim_b": claim_b.content,
+                "conflict_type": conflict.conflict_type,
+                "resolution": conflict.resolution_status,
+                "explanation": conflict.meta_analysis,
+                
+                // This teaches the AI about context-dependence
+                "both_can_be_true": conflict.conflict_type == APPARENT_ONLY,
+                "context_a": claim_a.context,
+                "context_b": claim_b.context
+            }
+            
+            dataset.examples.append(conflict_example)
+        }
+        
+        return dataset
+    }
+    
+    function generate_qa_pairs(claim: Claim) -> List<QAPair> {
+        pairs = []
+        
+        // Direct question
+        pairs.append({
+            "question": generate_question_for_claim(claim),
+            "answer": claim.content,
+            "confidence": claim.confidence_score,
+            "sources": claim.evidence.map(e => e.source)
+        })
+        
+        // Reverse question (given answer, what's the question?)
+        pairs.append({
+            "answer": claim.content,
+            "question": "What do we know about " + extract_topic(claim) + "?",
+            "confidence": claim.confidence_score
+        })
+        
+        // Contrastive questions (what is this NOT?)
+        if (claim.conflicts_with.length > 0) {
+            for conflict in claim.conflicts_with {
+                conflicting_claim = get_claim(conflict.conflicting_claim_id)
+                pairs.append({
+                    "question": "Is it true that " + conflicting_claim.content + "?",
+                    "answer": "That depends on context. In " + claim.context.description + 
+                             ", the answer is: " + claim.content + 
+                             ". However, in " + conflicting_claim.context.description +
+                             ", it would be: " + conflicting_claim.content,
+                    "confidence": min(claim.confidence_score, conflicting_claim.confidence_score),
+                    "reasoning": conflict.meta_analysis
+                })
+            }
+        }
+        
+        // Uncertainty-aware questions
+        if (claim.confidence_score < 0.9) {
+            pairs.append({
+                "question": "How certain are we that " + claim.content + "?",
+                "answer": "We have " + certainty_tier_to_text(claim.certainty_tier) +
+                         " with confidence score " + claim.confidence_score +
+                         " based on " + claim.verification.verification_count + " verifications.",
+                "meta": true  // This is meta-knowledge about knowledge
+            })
+        }
+        
+        return pairs
+    }
+    
+    function generate_reasoning_chain(claim: Claim) -> List<Example> {
+        // Generate chain-of-thought examples showing how we derived this claim
+        
+        examples = []
+        
+        // Trace back through dependency tree
+        chain = build_reasoning_chain(claim)
+        
+        example = {
+            "task": "Explain how we know: " + claim.content,
+            "reasoning_steps": [],
+            "conclusion": claim.content
+        }
+        
+        // Start from axioms/observations
+        for step in chain.steps {
+            example.reasoning_steps.append({
+                "step_type": step.type,  // AXIOM, OBSERVATION, INFERENCE
+                "content": step.claim.content,
+                "justification": step.justification,
+                "confidence": step.claim.confidence_score
+            })
+        }
+        
+        examples.append(example)
+        
+        return examples
+    }
+}
+
+// ----------------------------------------------------------------------------
+// DISTRIBUTED COMPUTE LAYER: BlockClaw as Compute Infrastructure
+// ----------------------------------------------------------------------------
+
+struct ComputeNetwork {
+    // Use blockchain validation as distributed compute
+    
+    function submit_compute_task(task: ComputeTask) -> TaskID {
+        // Instead of centralized compute, distribute to validators
+        
+        task_id = generateUUID()
+        
+        // Broadcast to validator network
+        broadcast_to_validators(task)
+        
+        // Validators compete to solve (like mining, but useful work)
+        // Different from crypto mining - this is USEFUL computation
+        
+        return task_id
+    }
+    
+    function collect_compute_results(task_id: TaskID) -> ComputeResult {
+        // Multiple validators independently compute
+        // Consensus on result = verification
+        
+        results = wait_for_validator_results(task_id, min_validators: 3)
+        
+        // Check consensus
+        if (all_results_agree(results)) {
+            // High confidence in result
+            return ConsensusResult {
+                result: results[0].result,
+                confidence: 1.0,
+                verified_by: results.map(r => r.validator)
+            }
+        }
+        else {
+            // Disagreement - need more validators or arbitration
+            additional_results = request_additional_validation(task_id)
+            return majority_vote(results + additional_results)
+        }
+    }
+}
+
+// Example: Proof verification as distributed compute
+struct ProofVerificationTask extends ComputeTask {
+    proof: FormalProof
+    theorem: Theorem
+    
+    function execute_on_validator(validator: ValidatorNode) -> ValidationResult {
+        // Validator runs proof checker (Lean, Coq, Isabelle)
+        proof_checker = validator.proof_assistant
+        
+        result = proof_checker.verify(proof, theorem)
+        
+        return ValidationResult {
+            validator: validator.id,
+            valid: result.is_valid,
+            execution_time: result.time,
+            proof_trace: result.trace,
+            
+            // Validators stake tokens on their result
+            stake: validator.stake_amount
+        }
+    }
+}
+
+// Example: Statistical validation as distributed compute
+struct StatisticalValidationTask extends ComputeTask {
+    dataset: DatasetID
+    analysis: AnalysisCode
+    claimed_result: StatisticalResult
+    
+    function execute_on_validator(validator: ValidatorNode) -> ValidationResult {
+        // Validator independently runs the analysis
+        
+        data = fetch_dataset(dataset)
+        code = fetch_analysis_code(analysis)
+        
+        // Run in isolated environment
+        result = validator.execute_code(code, data)
+        
+        // Compare to claimed result
+        matches = compare_results(result, claimed_result)
+        
+        return ValidationResult {
+            validator: validator.id,
+            matches_claim: matches,
+            independent_result: result,
+            reproducible: matches,
+            
+            // If doesn't match, validator earns reward for finding error
+            disputed: !matches
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+// LIVE REFERENCE SYSTEM: BlockClaw During AI Inference
+// ----------------------------------------------------------------------------
+
+struct InferenceIntegration {
+    // AI queries BlockClaw in real-time during generation
+    
+    function fact_check_during_generation(
+        ai_output: String,
+        context: Context
+    ) -> FactCheckResult {
+        
+        // Extract claims from AI output
+        claims = extract_claims(ai_output)
+        
+        results = []
+        for claim in claims {
+            // Query BlockClaw
+            blockclaw_claims = search_similar_claims(claim)
+            
+            if (blockclaw_claims.length > 0) {
+                best_match = blockclaw_claims[0]
+                
+                if (semantic_similarity(claim, best_match.content) > 0.9) {
+                    // AI claim matches BlockClaw
+                    results.append({
+                        claim: claim,
+                        verified: true,
+                        confidence: best_match.confidence_score,
+                        source: best_match.evidence[0].source,
+                        certainty_tier: best_match.certainty_tier
+                    })
+                }
+                else if (contradicts(claim, best_match)) {
+                    // AI claim contradicts BlockClaw!
+                    results.append({
+                        claim: claim,
+                        verified: false,
+                        contradiction: best_match.content,
+                        confidence: 0.0,
+                        warning: "AI output contradicts verified claim"
+                    })
+                }
+                else {
+                    // Partial match or uncertainty
+                    results.append({
+                        claim: claim,
+                        verified: "uncertain",
+                        related_claims: blockclaw_claims,
+                        confidence: 0.5
+                    })
+                }
+            }
+            else {
+                // No BlockClaw data on this claim
+                results.append({
+                    claim: claim,
+                    verified: "unknown",
+                    confidence: null,
+                    note: "Not in BlockClaw - proceed with caution"
+                })
+            }
+        }
+        
+        return FactCheckResult {
+            ai_output: ai_output,
+            fact_checks: results,
+            overall_reliability: calculate_overall_reliability(results)
+        }
+    }
+    
+    function constrained_generation(
+        prompt: String,
+        constraints: GenerationConstraints
+    ) -> String {
+        
+        // Generate with BlockClaw constraints
+        
+        output = ""
+        
+        while (!generation_complete) {
+            // Get next token from LLM
+            next_token = sample_next_token(prompt + output)
+            
+            // Check if adding this token would violate BlockClaw
+            hypothetical_output = output + next_token
+            
+            fact_check = fact_check_during_generation(hypothetical_output, context)
+            
+            if (constraints.only_verified_claims) {
+                // Reject tokens that lead to unverified claims
+                if (fact_check.overall_reliability < 0.8) {
+                    // Reject this token, try next most likely
+                    next_token = sample_next_token(prompt + output, exclude: [next_token])
+                    continue
+                }
+            }
+            
+            if (constraints.flag_uncertainty) {
+                // Add uncertainty markers
+                if (fact_check.overall_reliability < 0.9) {
+                    output += "[uncertainty: " + (1 - fact_check.overall_reliability) + "]"
+                }
+            }
+            
+            output += next_token
+        }
+        
+        return output
+    }
+}
+
+// ----------------------------------------------------------------------------
+// TRAINING MODES: Different Ways to Use BlockClaw for AI Training
+// ----------------------------------------------------------------------------
+
+enum TrainingMode {
+    FULL_KNOWLEDGE_BASE,      // Train on everything (current LLM approach)
+    CERTAINTY_FILTERED,       // Only train on high-certainty claims
+    CERTAINTY_AWARE,          // Train with certainty labels
+    ADVERSARIAL_CONFLICTS,    // Train specifically on conflicts
+    CURRICULUM_LEARNING,      // Train in order: axioms → observations → inferences
+    MULTI_PERSPECTIVE,        // Train to understand multiple viewpoints on contested topics
+    META_EPISTEMIC           // Train to reason about knowledge itself
+}
+
+function train_ai_on_blockclaw(
+    model: LanguageModel,
+    mode: TrainingMode,
+    config: TrainingConfig
+) -> TrainedModel {
+    
+    match mode {
+        FULL_KNOWLEDGE_BASE:
+            // Traditional approach - train on all BlockClaw data
+            dataset = export_training_dataset(
+                certainty_threshold: 0.0,  // Include everything
+                domains: ALL_DOMAINS,
+                format: QUESTION_ANSWER
+            )
+            
+            return train(model, dataset, config)
+        
+        CERTAINTY_FILTERED:
+            // Only train on high-certainty claims
+            // Result: Model never hallucinates, but has limited knowledge
+            dataset = export_training_dataset(
+                certainty_threshold: 0.9,  // Only very certain claims
+                domains: ALL_DOMAINS,
+                format: QUESTION_ANSWER
+            )
+            
+            return train(model, dataset, config)
+        
+        CERTAINTY_AWARE:
+            // Train model to output uncertainty estimates
+            // This is KEY - teach AI to say "I don't know"
+            
+            dataset = export_training_dataset(
+                certainty_threshold: 0.0,
+                domains: ALL_DOMAINS,
+                format: QUESTION_ANSWER_WITH_CONFIDENCE
+            )
+            
+            // Examples look like:
+            // Q: "What is the boiling point of water?"
+            // A: "100°C at sea level [confidence: 1.0, certainty: EMPIRICALLY_CERTAIN]"
+            //
+            // Q: "Is string theory correct?"
+            // A: "String theory is a theoretical framework that attempts to unify quantum 
+            //     mechanics and general relativity [confidence: 0.3, certainty: THEORETICAL].
+            //     It has not been empirically verified."
+            
+            return train(model, dataset, config)
+        
+        ADVERSARIAL_CONFLICTS:
+            // Train specifically on contradictions and their resolutions
+            // Teaches nuance and context-awareness
+            
+            conflicts = truth_chain.get_all_conflicts()
+            
+            dataset = []
+            for conflict in conflicts {
+                claim_a = get_claim(conflict.claim_a_id)
+                claim_b = get_claim(conflict.claim_b_id)
+                
+                # Create contrastive examples
+                dataset.append({
+                    "input": "Person A says: " + claim_a.content + 
+                            "\nPerson B says: " + claim_b.content +
+                            "\nWho is right?",
+                    "output": generate_resolution_explanation(conflict),
+                    "type": "conflict_resolution"
+                })
+            }
+            
+            return train(model, dataset, config)
+        
+        CURRICULUM_LEARNING:
+            // Train in stages: fundamentals → advanced
+            // Mimics how humans learn
+            
+            # Stage 1: Axioms and definitions
+            axiom_data = export_claims_of_tier(LOGICALLY_NECESSARY)
+            model = train(model, axiom_data, config)
+            
+            # Stage 2: Direct observations
+            observation_data = export_claims_of_type(EMPIRICAL_DIRECT)
+            model = train(model, observation_data, config)
+            
+            # Stage 3: Inferences
+            inference_data = export_claims_of_type(EMPIRICAL_INFERRED)
+            model = train(model, inference_data, config)
+            
+            # Stage 4: Theoretical frameworks
+            theory_data = export_claims_of_type(THEORETICAL)
+            model = train(model, theory_data, config)
+            
+            return model
+        
+        META_EPISTEMIC:
+            // Train to reason about knowledge, not just have knowledge
+            // This is closest to AGI
+            
+            dataset = []
+            
+            for claim in all_claims {
+                # Meta-questions
+                dataset.append({
+                    "Q": "How do we know that " + claim.content + "?",
+                    "A": explain_epistemology(claim)
+                })
+                
+                dataset.append({
+                    "Q": "How certain are we about: " + claim.content + "?",
+                    "A": explain_certainty(claim)
+                })
+                
+                dataset.append({
+                    "Q": "What would it take to disprove: " + claim.content + "?",
+                    "A": describe_falsifiability(claim)
+                })
+                
+                dataset.append({
+                    "Q": "What are the assumptions behind: " + claim.content + "?",
+                    "A": list_dependencies(claim)
+                })
+            }
+            
+            return train(model, dataset, config)
+    }
+}
+
+// ----------------------------------------------------------------------------
+// BLOCKCLAW-NATIVE AI: AI Architectures Designed for BlockClaw
+// ----------------------------------------------------------------------------
+
+struct BlockClawNativeModel {
+    // An AI model architecturally integrated with BlockClaw
+    
+    base_model: LanguageModel
+    
+    // Direct blockchain connection
+    blockclaw_connection: BlockClawClient
+    
+    // Augmented architecture
+    components: {
+        // Standard LLM components
+        embedder: Embedder,
+        transformer: Transformer,
+        output_head: OutputHead,
+        
+        // BlockClaw-specific components
+        fact_retriever: FactRetriever {
+            // Retrieves relevant claims during forward pass
+            function retrieve_relevant_claims(hidden_state: Tensor) -> List<Claim> {
+                # Convert hidden state to query
+                query_embedding = project_to_query_space(hidden_state)
+                
+                # Search BlockClaw
+                relevant_claims = blockclaw_connection.semantic_search(
+                    query_embedding,
+                    top_k: 10
+                )
+                
+                return relevant_claims
+            }
+        },
+        
+        certainty_estimator: CertaintyEstimator {
+            // Estimates output certainty based on BlockClaw match
+            function estimate_certainty(output: String) -> Float {
+                matching_claims = blockclaw_connection.find_matching_claims(output)
+                
+                if (matching_claims.length > 0) {
+                    # Weight by similarity
+                    weighted_certainty = sum(
+                        match.similarity * match.claim.confidence_score
+                        for match in matching_claims
+                    ) / sum(match.similarity for match in matching_claims)
+                    
+                    return weighted_certainty
+                }
+                else {
+                    # No BlockClaw support - low certainty
+                    return 0.3
+                }
+            }
+        },
+        
+        attribution_generator: AttributionGenerator {
+            // Automatically generates citations
+            function generate_attribution(output: String) -> List<Citation> {
+                claims_used = track_claims_used_in_generation(output)
+                
+                citations = []
+                for claim in claims_used {
+                    citations.append(Citation {
+                        claim_id: claim.id,
+                        source: claim.evidence[0].source,
+                        confidence: claim.confidence_score
+                    })
+                }
+                
+                return citations
+            }
+        },
+        
+        hallucination_preventer: HallucinationPreventer {
+            // Prevents generation of unverified claims
+            function check_before_generation(token: Token) -> Boolean {
+                hypothetical_output = current_output + token
+                
+                # Would this create an unverified claim?
+                new_claims = extract_new_claims(hypothetical_output)
+                
+                for claim in new_claims {
+                    if (!blockclaw_connection.claim_exists(claim)) {
+                        # This would be hallucination!
+                        # Reduce probability of this token
+                        return false
+                    }
+                }
+                
+                return true
+            }
+        }
+    }
+    
+    function forward(input: String) -> GenerationResult {
+        # Standard LLM processing
+        hidden_states = base_model.encode(input)
+        
+        # Augment with BlockClaw retrieval
+        relevant_claims = fact_retriever.retrieve_relevant_claims(hidden_states)
+        
+        # Incorporate retrieved facts into generation
+        augmented_context = combine_input_and_claims(input, relevant_claims)
+        
+        # Generate with hallucination prevention
+        output = ""
+        for step in generation_steps {
+            next_token_probs = base_model.get_next_token_probs(augmented_context + output)
+            
+            # Filter tokens that would cause hallucination
+            filtered_probs = []
+            for token, prob in next_token_probs {
+                if (hallucination_preventer.check_before_generation(token)) {
+                    filtered_probs.append((token, prob))
+                else {
+                    filtered_probs.append((token, prob * 0.01))  # Heavily penalize
+            }
+            
+            # Sample from filtered distribution
+            next_token = sample(filtered_probs)
+            output += next_token
+        }
+        
+        # Add certainty estimate
+        certainty = certainty_estimator.estimate_certainty(output)
+        
+        # Add citations
+        citations = attribution_generator.generate_attribution(output)
+        
+        return GenerationResult {
+            text: output,
+            certainty: certainty,
+            citations: citations,
+            claims_used: relevant_claims
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+// COMPUTE AMPLIFICATION: BlockClaw Multiplies Effective Compute
+// ----------------------------------------------------------------------------
+
+struct ComputeAmplification {
+    // Key insight: Distributed validation = distributed compute
+    // Every validator checking a claim = parallel processing
+    
+    function calculate_effective_compute(blockclaw: BlockClaw) -> ComputeMetrics {
+        # Traditional AI training
+        traditional_compute = model_params * training_tokens * FLOPs_per_token
+        
+        # BlockClaw augmentation
+        validator_count = blockclaw.compute_network.validator_nodes.length
+        avg_validation_compute = calculate_avg_validation_cost()
+        claims_validated_per_day = get_validation_rate()
+        
+        distributed_compute = validator_count * avg_validation_compute * claims_validated_per_day
+        
+        # Effective multiplier
+        multiplier = distributed_compute / traditional_compute
+        
+        return ComputeMetrics {
+            traditional_compute_budget: traditional_compute,
+            distributed_verification_compute: distributed_compute,
+            effective_multiplier: multiplier,
+            
+            # Example: If you have 10,000 validators each doing 1 TFLOP/s of verification
+            # That's 10 PFLOP/s of distributed compute
+            # For "free" (paid for by validator incentives)
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+// DATA AMPLIFICATION: BlockClaw Multiplies Effective Dataset Size  
+// ----------------------------------------------------------------------------
+
+struct DataAmplification {
+    // Key insight: Structured knowledge > raw text
+    // One BlockClaw claim = thousands of training examples
+    
+    function calculate_effective_data(blockclaw: BlockClaw) -> DataMetrics {
+        # Count base claims
+        total_claims = blockclaw.truth_chain.get_claim_count()
+        
+        # Each claim generates multiple training examples
+        examples_per_claim = {
+            qa_pairs: 5,              # Question-answer pairs
+            reasoning_chains: 3,      # Chain-of-thought examples
+            context_variations: 10,   # Different contextualizations
+            conflict_examples: 2,     # If claim has conflicts
+            meta_examples: 4          # Meta-reasoning about the claim
+        }
+        
+        avg_examples = mean(examples_per_claim.values())
+        total_examples = total_claims * avg_examples
+        
+        # Also: structured data is higher quality than raw web scraping
+        quality_multiplier = 3.0  # Verified claim worth 3x random web text
+        
+        effective_data_size = total_examples * quality_multiplier
+        
+        return DataMetrics {
+            raw_claims: total_claims,
+            generated_examples: total_examples,
+            quality_adjusted_size: effective_data_size,
+            
+            # Example: 1M BlockClaw claims → 24M training examples
+            # Quality-adjusted: equivalent to 72M web examples
+            # Current LLMs train on ~1-10T tokens
+            # BlockClaw could add significant structured knowledge
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+// EXAMPLE: Training GPT-5 on BlockClaw
+// ----------------------------------------------------------------------------
+
+function train_gpt5_with_blockclaw() {
+    # Start with base model
+    gpt5_base = load_pretrained("gpt-5-base")
+    
+    # Phase 1: Certainty-aware fine-tuning
+    blockclaw_dataset = export_training_dataset(
+        certainty_threshold: 0.7,
+        domains: ALL_DOMAINS,
+        format: QUESTION_ANSWER_WITH_CONFIDENCE
+    )
+    
+    gpt5_certainty_aware = fine_tune(
+        gpt5_base,
+        blockclaw_dataset,
+        objective: CERTAINTY_AWARE_LOSS
+    )
+    
+    # Phase 2: Integrate live BlockClaw reference
+    gpt5_blockclaw = BlockClawNativeModel {
+        base_model: gpt5_certainty_aware,
+        blockclaw_connection: connect_to_blockclaw(),
+        components: initialize_blockclaw_components()
+    }
+    
+    # Phase 3: Reinforcement learning with BlockClaw as reward
+    reward_model = BlockClawRewardModel {
+        function compute_reward(output: String) -> Float {
+            fact_check = blockclaw.fact_check(output)
+            
+            reward = 0.0
+            
+            # Reward for accurate claims
+            reward += fact_check.verified_claims_count * 1.0
+            
+            # Penalty for false claims
+            reward -= fact_check.false_claims_count * 5.0
+            
+            # Bonus for appropriate uncertainty
+            reward += fact_check.appropriate_uncertainty_score * 0.5
+            
+            # Bonus for citations
+            reward += fact_check.citations_count * 0.2
+            
+            return reward
+        }
+    }
+    
+    gpt5_final = reinforce(
+        gpt5_blockclaw,
+        reward_model: reward_model,
+        epochs: 100
+    )
+    
+    return gpt5_final
+}
